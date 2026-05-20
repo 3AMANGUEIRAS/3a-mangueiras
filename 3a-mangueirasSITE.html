@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>3A Mangueiras e Fixadores — Atendimento</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;background:#f4f4f4;min-height:100vh;}
+.app{max-width:480px;margin:0 auto;padding:1rem;}
+.nav{background:#1D9E75;border-radius:12px 12px 0 0;display:flex;align-items:center;}
+.nav-logo{color:#fff;font-size:13px;font-weight:500;padding:10px 14px;border-right:0.5px solid #0F6E56;}
+.nav-btn{background:none;border:none;color:#9FE1CB;padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;}
+.nav-btn.active{color:#fff;border-bottom:2px solid #fff;}
+.nav-btn:hover{color:#fff;}
+.page{display:none;}
+.page.active{display:block;}
+
+.chat-header{background:#1D9E75;padding:12px 16px;display:flex;align-items:center;gap:10px;}
+.chat-header h2{color:#fff;font-size:14px;font-weight:500;}
+.chat-header p{color:#9FE1CB;font-size:12px;}
+.chat-av{width:38px;height:38px;border-radius:50%;background:#5DCAA5;display:flex;align-items:center;justify-content:center;}
+.chat-area{background:#f0f0f0;border-left:0.5px solid #ddd;border-right:0.5px solid #ddd;min-height:380px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.bubble{max-width:85%;padding:9px 13px;border-radius:12px;font-size:14px;line-height:1.5;}
+.bubble.bot{background:#fff;border:0.5px solid #ddd;color:#222;align-self:flex-start;border-radius:4px 12px 12px 12px;}
+.bubble.user{background:#1D9E75;color:#fff;align-self:flex-end;border-radius:12px 4px 12px 12px;}
+.opts{display:flex;flex-direction:column;gap:5px;}
+.opt-btn{background:#fff;border:0.5px solid #1D9E75;color:#0F6E56;padding:7px 13px;border-radius:20px;font-size:13px;cursor:pointer;text-align:left;}
+.opt-btn:hover{background:#E1F5EE;}
+.chat-input{background:#fff;border:0.5px solid #ddd;border-radius:0 0 12px 12px;padding:8px 10px;display:flex;gap:6px;align-items:center;}
+.chat-input input{flex:1;border:0.5px solid #ddd;border-radius:20px;padding:7px 12px;font-size:13px;background:#f4f4f4;color:#222;}
+.chat-input input:focus{outline:none;border-color:#1D9E75;}
+.send-btn{background:#1D9E75;border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;flex-shrink:0;}
+.tag{display:inline-block;font-size:11px;background:#E1F5EE;color:#085041;border-radius:10px;padding:2px 7px;margin-bottom:3px;}
+.rcard{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:12px;margin-top:4px;}
+.rcard p{font-size:12px;color:#666;margin-bottom:8px;}
+.wbtn{display:flex;align-items:center;gap:6px;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer;font-weight:500;width:100%;justify-content:center;margin-bottom:6px;}
+.wbtn.v{background:#25D366;}.wbtn.f{background:#1D9E75;}
+.wbtn:hover{opacity:0.9;}
+
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:1rem;}
+.stat{background:#fff;border-radius:8px;padding:12px;border:0.5px solid #ddd;}
+.stat-label{font-size:12px;color:#666;margin-bottom:4px;}
+.stat-val{font-size:22px;font-weight:500;color:#222;}
+.toolbar{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap;}
+.toolbar input,.toolbar select{flex:1;min-width:100px;border:0.5px solid #ddd;border-radius:8px;padding:7px 10px;font-size:13px;background:#fff;color:#222;}
+.btn-export{background:#1D9E75;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.btn-export:hover{background:#0F6E56;}
+.card{background:#fff;border:0.5px solid #ddd;border-radius:12px;overflow:hidden;margin-bottom:1rem;}
+.card-header{padding:12px 16px;border-bottom:0.5px solid #ddd;display:flex;align-items:center;justify-content:space-between;}
+.card-header h3{font-size:14px;font-weight:500;color:#222;}
+.lead-row{padding:10px 16px;border-bottom:0.5px solid #eee;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.lead-row:last-child{border-bottom:none;}
+.lead-row:hover{background:#f9f9f9;}
+.av{width:34px;height:34px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#085041;flex-shrink:0;}
+.lead-info{flex:1;min-width:0;}
+.lead-info p{font-size:13px;font-weight:500;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lead-info span{font-size:12px;color:#666;}
+.status-pill{font-size:11px;padding:3px 8px;border-radius:10px;white-space:nowrap;cursor:pointer;}
+.s-novo{background:#E1F5EE;color:#085041;}
+.s-atendimento{background:#E6F1FB;color:#0C447C;}
+.s-finalizado{background:#EAF3DE;color:#27500A;}
+.detail-modal{background:#f4f4f4;border-radius:12px;padding:1rem;margin-bottom:1rem;display:none;border:0.5px solid #ddd;}
+.detail-modal.open{display:block;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.detail-field label{font-size:11px;color:#666;display:block;margin-bottom:2px;}
+.detail-field p{font-size:13px;color:#222;}
+.hist-item{font-size:12px;color:#666;padding:4px 0;border-bottom:0.5px solid #ddd;display:flex;gap:8px;}
+.hist-item:last-child{border-bottom:none;}
+.hist-time{color:#999;white-space:nowrap;}
+.empty{text-align:center;padding:2rem;color:#888;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="nav">
+    <span class="nav-logo"><i class="ti ti-building-store" style="font-size:14px;vertical-align:-2px;margin-right:4px;"></i>3A Mangueiras</span>
+    <button class="nav-btn active" onclick="showPage('bot',this)"><i class="ti ti-message-chatbot" style="font-size:14px;vertical-align:-2px;margin-right:3px;"></i>Atendimento</button>
+    <button class="nav-btn" onclick="showPage('painel',this)"><i class="ti ti-users" style="font-size:14px;vertical-align:-2px;margin-right:3px;"></i>Leads</button>
+  </div>
+
+  <div class="page active" id="page-bot">
+    <div class="chat-header">
+      <div class="chat-av"><i class="ti ti-headset" style="font-size:18px;color:#fff;"></i></div>
+      <div><h2>3A Mangueiras e Fixadores</h2><p>Assistente virtual</p></div>
+    </div>
+    <div class="chat-area" id="chat"></div>
+    <div class="chat-input">
+      <input type="text" id="userInput" placeholder="Digite sua mensagem..." />
+      <button class="send-btn" onclick="sendUserMsg()"><i class="ti ti-send" style="font-size:14px;"></i></button>
+    </div>
+  </div>
+
+  <div class="page" id="page-painel">
+    <div style="padding-top:1rem;">
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-label">Total de leads</div><div class="stat-val" id="st-total">0</div></div>
+        <div class="stat"><div class="stat-label">Novos</div><div class="stat-val" id="st-novo">0</div></div>
+        <div class="stat"><div class="stat-label">Em atendimento</div><div class="stat-val" id="st-atend">0</div></div>
+        <div class="stat"><div class="stat-label">Finalizados</div><div class="stat-val" id="st-fin">0</div></div>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="Buscar cliente..." oninput="renderLeads()" />
+        <select id="filterStatus" onchange="renderLeads()">
+          <option value="">Todos os status</option>
+          <option value="Novo">Novo</option>
+          <option value="Em atendimento">Em atendimento</option>
+          <option value="Finalizado">Finalizado</option>
+        </select>
+        <button class="btn-export" onclick="exportCSV()"><i class="ti ti-download" style="font-size:13px;"></i> Exportar</button>
+      </div>
+      <div class="detail-modal" id="detailModal"></div>
+      <div class="card">
+        <div class="card-header"><h3>Clientes cadastrados</h3></div>
+        <div id="leadsList"><div class="empty">Nenhum lead ainda. Use o bot de atendimento.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const VENDEDOR="5592992859678";
+const FINANCEIRO="559286229361";
+let leads=[];
+let selectedId=null;
+const chat=document.getElementById("chat");
+let step="start",clienteNome="",clienteTel="",clienteCategoria="",destinoAtual="";
+
+const menuOpts=[
+  {label:"1 - Mangueiras e fixadores",value:"mangueiras"},
+  {label:"2 - Parafusos",value:"parafusos"},
+  {label:"3 - Elétrica",value:"eletrica"},
+  {label:"4 - Tintas",value:"tintas"},
+  {label:"5 - Automotivo",value:"automotivo"},
+  {label:"6 - EPI",value:"epi"},
+  {label:"7 - Falar com vendedor",value:"vendedor"},
+  {label:"8 - Falar com o financeiro",value:"financeiro"}
+];
+const menuLabels={mangueiras:"Mangueiras e fixadores",parafusos:"Parafusos",eletrica:"Elétrica",tintas:"Tintas",automotivo:"Automotivo",epi:"EPI",vendedor:"Falar com vendedor",financeiro:"Falar com o financeiro"};
+
+function showPage(p,btn){
+  document.querySelectorAll(".page").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("page-"+p).classList.add("active");
+  btn.classList.add("active");
+  if(p==="painel")renderLeads();
+}
+
+function addBubble(text,type,delay){
+  setTimeout(()=>{
+    const b=document.createElement("div");
+    b.className="bubble "+type;
+    b.innerHTML=text;
+    chat.appendChild(b);
+    chat.scrollTop=chat.scrollHeight;
+  },delay||0);
+}
+
+function addOptions(opts,delay){
+  setTimeout(()=>{
+    const wrap=document.createElement("div");
+    wrap.className="opts";wrap.id="opts";
+    opts.forEach(o=>{
+      const btn=document.createElement("button");
+      btn.className="opt-btn";btn.textContent=o.label;
+      btn.onclick=()=>{removeOpts();handleOption(o.value);};
+      wrap.appendChild(btn);
+    });
+    chat.appendChild(wrap);
+    chat.scrollTop=chat.scrollHeight;
+  },delay||0);
+}
+
+function removeOpts(){const o=document.getElementById("opts");if(o)o.remove();}
+
+function showMenu(delay){
+  addBubble(`<span class="tag">Menu principal</span><br>Como posso te ajudar?<br><br><b>1.</b> Mangueiras e fixadores<br><b>2.</b> Parafusos<br><b>3.</b> Elétrica<br><b>4.</b> Tintas<br><b>5.</b> Automotivo<br><b>6.</b> EPI<br><b>7.</b> Falar com vendedor<br><b>8.</b> Falar com o financeiro`,"bot",delay);
+  addOptions(menuOpts,(delay||0)+200);
+  step="menu";
+}
+
+function handleOption(val){
+  if(val==="_menu"){clienteNome="";clienteTel="";clienteCategoria="";destinoAtual="";showMenu(300);return;}
+  clienteCategoria=menuLabels[val]||val;
+  addBubble(menuLabels[val]||val,"user");
+  if(val==="financeiro"){destinoAtual="financeiro";addBubble("Vou te conectar com o <b>financeiro</b>. Preciso de alguns dados.","bot",500);setTimeout(()=>pedirNome(),1000);}
+  else if(val==="vendedor"){destinoAtual="vendedor";addBubble("Vou te conectar com nosso <b>vendedor</b>. Preciso de alguns dados.","bot",500);setTimeout(()=>pedirNome(),1000);}
+  else{destinoAtual="vendedor";addBubble(`Ótimo! Para te ajudar com <b>${menuLabels[val]}</b>, vou conectar com nosso vendedor.`,"bot",500);setTimeout(()=>pedirNome(),1000);}
+}
+
+function pedirNome(){step="nome";addBubble("Qual é o seu <b>nome</b>?","bot",200);document.getElementById("userInput").focus();}
+function pedirTelefone(){step="telefone";addBubble(`Prazer, ${clienteNome.split(" ")[0]}! Agora me informe seu <b>WhatsApp</b> com DDD:`,"bot",300);}
+
+function mostrarRedirecionamento(){
+  step="done";
+  const isF=destinoAtual==="financeiro";
+  const numero=isF?FINANCEIRO:VENDEDOR;
+  const destLabel=isF?"financeiro":"vendedor";
+  const msg=encodeURIComponent(`Olá! Vim pelo atendimento automático da 3A Mangueiras.\n\nNome: ${clienteNome}\nWhatsApp: ${clienteTel}\nAssunto: ${clienteCategoria}`);
+  addBubble(`Cadastro realizado! Conectando com o <b>${destLabel}</b>...`,"bot",400);
+  setTimeout(()=>{
+    const card=document.createElement("div");
+    card.className="rcard";
+    card.innerHTML=`<p>Toque para iniciar o atendimento:</p>
+      <button class="wbtn ${isF?'f':'v'}" onclick="window.open('https://wa.me/${numero}?text=${msg}','_blank')">
+        <i class="ti ti-brand-whatsapp" style="font-size:16px;"></i> Falar com o ${destLabel}
+      </button>`;
+    chat.appendChild(card);
+    chat.scrollTop=chat.scrollHeight;
+    const lead={id:Date.now(),nome:clienteNome,tel:clienteTel,categoria:clienteCategoria,destino:destLabel,status:"Novo",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),data:new Date().toLocaleDateString("pt-BR"),historico:[{acao:"Cadastro realizado via bot",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}]};
+    leads.unshift(lead);
+    setTimeout(()=>{addBubble("Posso te ajudar com mais alguma coisa?","bot");addOptions([{label:"Voltar ao menu principal",value:"_menu"}],400);},1500);
+  },1000);
+}
+
+function sendUserMsg(){
+  const inp=document.getElementById("userInput");
+  const val=inp.value.trim();if(!val)return;inp.value="";
+  addBubble(val,"user");
+  if(step==="nome"){clienteNome=val;pedirTelefone();}
+  else if(step==="telefone"){clienteTel=val;mostrarRedirecionamento();}
+  else if(step==="menu"||step==="start"){addBubble("Por favor, escolha uma opção do menu acima.","bot",300);}
+}
+
+document.getElementById("userInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendUserMsg();});
+
+function ini(nome){return nome.split(" ").map(w=>w[0]).join("").substring(0,2).toUpperCase();}
+function statusClass(s){return s==="Novo"?"s-novo":s==="Em atendimento"?"s-atendimento":"s-finalizado";}
+
+function cycleStatus(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  const s=["Novo","Em atendimento","Finalizado"];
+  l.status=s[(s.indexOf(l.status)+1)%3];
+  l.historico.push({acao:"Status: "+l.status,hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})});
+  renderLeads();if(selectedId===id)showDetail(id);
+}
+
+function showDetail(id){
+  selectedId=id;
+  const l=leads.find(x=>x.id===id);
+  const modal=document.getElementById("detailModal");
+  if(!l){modal.classList.remove("open");return;}
+  modal.classList.add("open");
+  modal.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="av" style="width:40px;height:40px;font-size:14px;">${ini(l.nome)}</div>
+        <div><p style="font-size:14px;font-weight:500;color:#222;">${l.nome}</p><span style="font-size:12px;color:#666;">${l.categoria}</span></div>
+      </div>
+      <button onclick="document.getElementById('detailModal').classList.remove('open');selectedId=null;" style="background:none;border:none;cursor:pointer;color:#666;font-size:18px;"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Telefone</label><p>${l.tel}</p></div>
+      <div class="detail-field"><label>Destino</label><p>${l.destino}</p></div>
+      <div class="detail-field"><label>Data</label><p>${l.data} ${l.hora}</p></div>
+      <div class="detail-field"><label>Status</label><p><span class="status-pill ${statusClass(l.status)}" onclick="cycleStatus(${l.id})">${l.status}</span></p></div>
+    </div>
+    <p style="font-size:12px;font-weight:500;color:#666;margin-bottom:6px;">Histórico</p>
+    <div>${l.historico.map(h=>`<div class="hist-item"><span class="hist-time">${h.hora}</span><span>${h.acao}</span></div>`).join("")}</div>
+    <div style="margin-top:10px;">
+      <button class="wbtn v" onclick="window.open('https://wa.me/${VENDEDOR}','_blank')"><i class="ti ti-brand-whatsapp" style="font-size:14px;"></i> Contatar via WhatsApp</button>
+    </div>`;
+}
+
+function renderLeads(){
+  const search=document.getElementById("searchInput").value.toLowerCase();
+  const fS=document.getElementById("filterStatus").value;
+  const filtered=leads.filter(l=>{
+    return(!fS||l.status===fS)&&(!search||l.nome.toLowerCase().includes(search)||l.tel.includes(search));
+  });
+  const list=document.getElementById("leadsList");
+  if(filtered.length===0){list.innerHTML='<div class="empty">Nenhum lead encontrado.</div>';return;}
+  list.innerHTML=filtered.map(l=>`
+    <div class="lead-row" onclick="showDetail(${l.id})">
+      <div class="av">${ini(l.nome)}</div>
+      <div class="lead-info"><p>${l.nome}</p><span>${l.tel} · ${l.categoria}</span></div>
+      <span class="status-pill ${statusClass(l.status)}" onclick="event.stopPropagation();cycleStatus(${l.id})">${l.status}</span>
+      <span style="font-size:11px;color:#999;">${l.hora}</span>
+    </div>`).join("");
+  document.getElementById("st-total").textContent=leads.length;
+  document.getElementById("st-novo").textContent=leads.filter(x=>x.status==="Novo").length;
+  document.getElementById("st-atend").textContent=leads.filter(x=>x.status==="Em atendimento").length;
+  document.getElementById("st-fin").textContent=leads.filter(x=>x.status==="Finalizado").length;
+}
+
+function exportCSV(){
+  if(leads.length===0){alert("Nenhum lead para exportar.");return;}
+  const header="Nome,Telefone,Categoria,Destino,Status,Data,Hora";
+  const rows=leads.map(l=>`"${l.nome}","${l.tel}","${l.categoria}","${l.destino}","${l.status}","${l.data}","${l.hora}"`);
+  const csv="\uFEFF"+header+"\n"+rows.join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download="leads_3a_mangueiras.csv";a.click();
+  URL.revokeObjectURL(url);
+}
+
+addBubble("Olá! Seja bem-vindo à <b>3A Mangueiras e Fixadores</b> 👋<br>Sou o assistente virtual da loja.","bot",300);
+showMenu(900);
+</script>
+</body>
+</html>
