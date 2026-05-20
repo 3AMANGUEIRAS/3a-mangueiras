@@ -3,10 +3,11 @@ export default async function handler(req, res) {
 
   const body = req.body;
   const phone = body?.data?.key?.remoteJid?.replace("@s.whatsapp.net","").replace("@c.us","");
-  const text = (body?.data?.message?.conversation || body?.data?.message?.extendedTextMessage?.text || "").trim().toLowerCase();
+  const textRaw = (body?.data?.message?.conversation || body?.data?.message?.extendedTextMessage?.text || "").trim();
+  const text = textRaw.toLowerCase();
   const fromMe = body?.data?.key?.fromMe;
 
-  if (!phone || !text || fromMe) return res.status(200).json({ ok: true });
+  if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
 
   const API_URL = "https://evolution-api-production-5b0f.up.railway.app";
   const API_KEY = "c9ef0b4782f6a9c50a6c4d432d38b25c77fabeed2cfc7e73cebe4d52566825db";
@@ -41,41 +42,42 @@ export default async function handler(req, res) {
   if (session.step === "start") {
     if (clienteExistente) {
       await send(phone, `Olá de novo, *${clienteExistente.nome}*! 👋\n\n${menu}`);
-      global.sessions[phone] = { step: "menu" };
     } else {
       await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\n\n${menu}`);
-      global.sessions[phone] = { step: "menu" };
     }
+    global.sessions[phone] = { step: "menu" };
 
   } else if (session.step === "menu") {
-    if (!labels[text]) {
+    if (!labels[text] || text.length > 1) {
       await send(phone, `Por favor, digite apenas o *número* da opção desejada:\n\n${menu}`);
     } else {
       const cat = labels[text];
       const isF = text === "8";
-      global.sessions[phone] = { step: "nome", cat, destino: isF ? FINANCEIRO : VENDEDOR, dest: isF ? "financeiro" : "vendedor" };
+      const dest = isF ? "financeiro" : "vendedor";
+      const destino = isF ? FINANCEIRO : VENDEDOR;
 
       if (clienteExistente) {
-        await send(phone, `Você escolheu: *${cat}*\n\n${clienteExistente.nome}, vou te conectar com nosso *${isF ? "financeiro" : "vendedor"}* agora!`);
+        await send(phone, `Você escolheu: *${cat}*\n\nVou te conectar com nosso *${dest}* agora! Um momento... ⏳`);
+        await send(destino, `🔔 *Novo contato!*\n\n👤 Nome: ${clienteExistente.nome}\n📱 WhatsApp: ${clienteExistente.tel}\n🏷️ Interesse: ${cat}`);
+        await send(phone, `✅ *Pronto!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
         global.sessions[phone] = { step: "start" };
-        await send(phone, `✅ Encaminhado!\n\nNosso *${isF ? "financeiro" : "vendedor"}* entrará em contato em breve! 👍\n\nPara voltar ao menu digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
-        await send(isF ? FINANCEIRO : VENDEDOR, `🔔 *Novo contato!*\n\n👤 Nome: ${clienteExistente.nome}\n📱 WhatsApp: ${clienteExistente.tel}\n🏷️ Interesse: ${cat}`);
       } else {
-        await send(phone, `Você escolheu: *${cat}*\n\nQual é o seu *nome*?`);
+        global.sessions[phone] = { step: "nome", cat, destino, dest };
+        await send(phone, `Você escolheu: *${cat}*\n\nQual é o seu *nome completo*?`);
       }
     }
 
   } else if (session.step === "nome") {
-    global.sessions[phone] = { ...session, step: "tel", nome: text };
-    await send(phone, `Prazer, *${text}*! 😊\n\nSeu *WhatsApp* com DDD:\n_(Digite tudo junto, sem traços ou pontos. Ex: 92999999999)_`);
+    global.sessions[phone] = { ...session, step: "tel", nome: textRaw };
+    await send(phone, `Prazer, *${textRaw}*! 😊\n\nSeu *WhatsApp* com DDD:\n_(Digite tudo junto, sem traços ou pontos. Ex: 92999999999)_`);
 
   } else if (session.step === "tel") {
     const { nome, cat, destino, dest } = session;
-    global.clientes[phone] = { nome, tel: text };
+    global.clientes[phone] = { nome, tel: textRaw };
     global.sessions[phone] = { step: "start" };
 
     await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
-    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${text}\n🏷️ Interesse: ${cat}`);
+    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}\n🏷️ Interesse: ${cat}`);
   }
 
   return res.status(200).json({ ok: true });
