@@ -2,23 +2,23 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).json({ ok: true });
 
   const body = req.body;
-  
-  const phone = body?.phone || body?.from || body?.sender || body?.chatId?.replace("@c.us","");
-  const text = (body?.text?.message || body?.text || body?.message || body?.body || "").trim().toLowerCase();
+  const phone = body?.data?.key?.remoteJid?.replace("@s.whatsapp.net","").replace("@c.us","");
+  const text = (body?.data?.message?.conversation || body?.data?.message?.extendedTextMessage?.text || "").trim().toLowerCase();
+  const fromMe = body?.data?.key?.fromMe;
 
-  if (!phone || !text) return res.status(200).json({ ok: true });
-  if (body?.fromMe || body?.isGroup) return res.status(200).json({ ok: true });
+  if (!phone || !text || fromMe) return res.status(200).json({ ok: true });
 
-  const INSTANCE_ID = "3F36A3EA4AEF835C07DD8E55E4F73592";
-  const TOKEN = "14521E5CC8C5FEAD2A5573CC";
+  const API_URL = "https://evolution-api-production-5b0f.up.railway.app";
+  const API_KEY = "c9ef0b4782f6a9c50a6c4d432d38b25c77fabeed2cfc7e73cebe4d52566825db";
+  const INSTANCE = "3a-mangueiras";
   const VENDEDOR = "5592992859678";
   const FINANCEIRO = "559286229361";
 
   async function send(to, msg) {
-    await fetch(`https://api.z-api.io/instances/${INSTANCE_ID}/token/${TOKEN}/send-text`, {
+    await fetch(`${API_URL}/message/sendText/${INSTANCE}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Client-Token": TOKEN },
-      body: JSON.stringify({ phone: to, message: msg })
+      headers: { "Content-Type": "application/json", "apikey": API_KEY },
+      body: JSON.stringify({ number: to, text: msg })
     });
   }
 
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   global.sessions = global.sessions || {};
   const session = global.sessions[phone] || { step: "start" };
 
-  if (session.step === "start" || session.step === "menu" || !labels[text] && session.step === "menu") {
+  if (session.step === "start" || session.step === "menu") {
     if (!labels[text]) {
       await send(phone, menu);
       global.sessions[phone] = { step: "menu" };
