@@ -25,6 +25,10 @@ export default async function handler(req, res) {
 
   const menu = `Como posso te ajudar?\n\n1️⃣ Mangueiras e fixadores\n2️⃣ Parafusos\n3️⃣ Elétrica\n4️⃣ Tintas\n5️⃣ Automotivo\n6️⃣ EPI\n7️⃣ Falar com vendedor\n8️⃣ Falar com o financeiro\n\nDigite o número:`;
 
+  const origemMenu = `Por onde você nos encontrou?\n\n1️⃣ Google\n2️⃣ Facebook\n3️⃣ Instagram\n4️⃣ Site\n5️⃣ Indicação\n\nDigite o número:`;
+
+  const origemLabels = {"1":"Google","2":"Facebook","3":"Instagram","4":"Site","5":"Indicação"};
+
   const labels = {"1":"Mangueiras e fixadores","2":"Parafusos","3":"Elétrica","4":"Tintas","5":"Automotivo","6":"EPI","7":"Falar com vendedor","8":"Falar com o financeiro"};
 
   global.sessions = global.sessions || {};
@@ -72,12 +76,17 @@ export default async function handler(req, res) {
     await send(phone, `Prazer, *${textRaw}*! 😊\n\nSeu *WhatsApp* com DDD:\n_(Digite tudo junto, sem traços ou pontos. Ex: 92999999999)_`);
 
   } else if (session.step === "tel") {
-    const { nome, cat, destino, dest } = session;
-    global.clientes[phone] = { nome, tel: textRaw };
+    global.sessions[phone] = { ...session, step: "origem", tel: textRaw };
+    await send(phone, origemMenu);
+
+  } else if (session.step === "origem") {
+    const origem = origemLabels[text] || textRaw;
+    const { nome, tel, cat, destino, dest } = session;
+    global.clientes[phone] = { nome, tel };
     global.sessions[phone] = { step: "start" };
 
     await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
-    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}\n🏷️ Interesse: ${cat}`);
+    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${tel}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
   }
 
   return res.status(200).json({ ok: true });
