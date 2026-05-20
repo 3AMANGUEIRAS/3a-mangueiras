@@ -67,7 +67,7 @@ export default async function handler(req, res) {
 
   } else if (session.step === "nome") {
     global.sessions[phone] = { ...session, step: "tel", nome: text };
-    await send(phone, `Prazer, *${text}*! 😊\n\nSeu *WhatsApp* com DDD:`);
+    await send(phone, `Prazer, *${text}*! 😊\n\nSeu *WhatsApp* com DDD:\n_(Digite tudo junto, sem traços ou pontos. Ex: 92999999999)_`);
 
   } else if (session.step === "tel") {
     const { nome, cat, destino, dest } = session;
