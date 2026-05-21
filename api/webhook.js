@@ -50,7 +50,12 @@ export default async function handler(req, res) {
   async function getSession() {
     try {
       const r = await db.query(`SELECT * FROM sessions WHERE phone = $1`, [phone]);
-      if (r.rows[0]) return { step: r.rows[0].step, ...r.rows[0].data };
+      // correto:
+if (r.rows[0]) {
+  const { step } = r.rows[0];
+  const data = r.rows[0].data || {};
+  return { ...data, step };
+}
       return { step: "start" };
     } catch(e) {
       console.error("Erro getSession:", e.message);
