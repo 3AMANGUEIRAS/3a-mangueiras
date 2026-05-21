@@ -16,11 +16,23 @@ export default async function handler(req, res) {
 
   if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
 
+  // ignora mensagens antigas (mais de 30 segundos)
+  const msgTimestamp = body?.data?.messageTimestamp;
+  if (msgTimestamp) {
+    const agora = Math.floor(Date.now() / 1000);
+    if (agora - msgTimestamp > 30) return res.status(200).json({ ok: true });
+  }
+
   const API_URL = "https://evolution-api-production-5b0f.up.railway.app";
   const API_KEY = "c9ef0b4782f6a9c50a6c4d432d38b25c77fabeed2cfc7e73cebe4d52566825db";
   const INSTANCE = "3a-mangueiras";
   const VENDEDOR = "5592992859678";
   const FINANCEIRO = "559286229361";
+
+  // ignora números internos
+  const phoneNorm = phone.replace(/\D/g, '').replace(/^55/, '');
+  const numerosInternos = [VENDEDOR, FINANCEIRO].map(n => n.replace(/\D/g, '').replace(/^55/, ''));
+  if (numerosInternos.includes(phoneNorm)) return res.status(200).json({ ok: true });
 
   async function send(to, msg) {
     await fetch(`${API_URL}/message/sendText/${INSTANCE}`, {
