@@ -38,14 +38,27 @@ export default async function handler(req, res) {
   global.sessions = global.sessions || {};
   const session = global.sessions[phone] || { step: "start" };
 
+  async function buscarCliente() {
+    try {
+      const r = await db.query("SELECT * FROM leads WHERE telefone = $1 ORDER BY criado_em DESC LIMIT 1", [phone]);
+      return r.rows[0] || null;
+    } catch(e) { return null; }
+  }
+
   if (text === "menu") {
-    await send(phone, `Olá de novo! Sou o *Mangueirinha* 😊\n\n${menu}`);
+    const cliente = await buscarCliente();
+    await send(phone, `Olá de novo${cliente ? `, *${cliente.nome}*` : ""}! Sou o *Mangueirinha* 😊\n\n${menu}`);
     global.sessions[phone] = { step: "menu" };
     return res.status(200).json({ ok: true });
   }
 
   if (session.step === "start") {
-    await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\n\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
+    const cliente = await buscarCliente();
+    if (cliente) {
+      await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
+    } else {
+      await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
+    }
     global.sessions[phone] = { step: "menu" };
 
   } else if (session.step === "menu") {
@@ -56,8 +69,17 @@ export default async function handler(req, res) {
       const isF = text === "8";
       const dest = isF ? "financeiro" : "vendedor";
       const destino = isF ? FINANCEIRO : VENDEDOR;
-      global.sessions[phone] = { step: "nome", cat, destino, dest };
-      await send(phone, `Você escolheu: *${cat}*\n\nQual é o seu *nome completo*?`);
+
+      const cliente = await buscarCliente();
+      if (cliente) {
+        global.sessions[phone] = { step: "start" };
+        await send(phone, `Você escolheu: *${cat}*\n\nVou te conectar com nosso *${dest}* agora! ⏳`);
+        await send(destino, `🔔 *Novo contato!*\n\n👤 Nome: ${cliente.nome}\n📱 WhatsApp: ${cliente.telefone}\n🏷️ Interesse: ${cat}`);
+        await send(phone, `✅ *Pronto!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
+      } else {
+        global.sessions[phone] = { step: "nome", cat, destino, dest };
+        await send(phone, `Você escolheu: *${cat}*\n\nQual é o seu *nome completo*?`);
+      }
     }
 
   } else if (session.step === "nome") {
@@ -78,9 +100,7 @@ export default async function handler(req, res) {
         `INSERT INTO leads (nome, telefone, interesse, origem, data, hora) VALUES ($1, $2, $3, $4, $5, $6)`,
         [nome, tel, cat, origem, new Date().toLocaleDateString("pt-BR"), new Date().toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})]
       );
-    } catch(e) {
-      console.error("Erro ao salvar lead:", e.message);
-    }
+    } catch(e) { console.error("Erro ao salvar lead:", e.message); }
 
     await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
     await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${tel}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
