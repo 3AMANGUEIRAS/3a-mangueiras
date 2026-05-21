@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     }
 
   } else if (session.step === "menu") {
-    if (!labels[text] || text.length > 1) {
+    if (!labels[text]) {
       const cliente = await buscarCliente();
       if (cliente) {
         await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
