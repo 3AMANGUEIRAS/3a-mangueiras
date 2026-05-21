@@ -39,13 +39,13 @@ export default async function handler(req, res) {
   const session = global.sessions[phone] || { step: "start" };
 
   if (text === "menu") {
-    await send(phone, `Olá de novo! 😊\n\n${menu}`);
+    await send(phone, `Olá de novo! Sou o *Mangueirinha* 😊\n\n${menu}`);
     global.sessions[phone] = { step: "menu" };
     return res.status(200).json({ ok: true });
   }
 
   if (session.step === "start") {
-    await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\n\n${menu}`);
+    await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\n\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
     global.sessions[phone] = { step: "menu" };
 
   } else if (session.step === "menu") {
