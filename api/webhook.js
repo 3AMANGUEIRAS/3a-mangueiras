@@ -40,9 +40,22 @@ export default async function handler(req, res) {
 
   async function buscarCliente() {
     try {
-      const r = await db.query("SELECT * FROM leads WHERE telefone = $1 ORDER BY criado_em DESC LIMIT 1", [phone]);
+      const phoneDigits = phone.replace(/\D/g, "");
+      const phoneSem55 = phoneDigits.replace(/^55/, "");
+      const phoneCom55 = "55" + phoneSem55;
+      const r = await db.query(
+        `SELECT * FROM leads WHERE 
+          REGEXP_REPLACE(telefone, '[^0-9]', '', 'g') = $1 OR
+          REGEXP_REPLACE(telefone, '[^0-9]', '', 'g') = $2 OR
+          REGEXP_REPLACE(telefone, '[^0-9]', '', 'g') = $3
+        ORDER BY criado_em DESC LIMIT 1`,
+        [phoneDigits, phoneSem55, phoneCom55]
+      );
       return r.rows[0] || null;
-    } catch(e) { return null; }
+    } catch(e) { 
+      console.error("Erro buscarCliente:", e.message);
+      return null; 
+    }
   }
 
   if (text === "menu") {
@@ -55,11 +68,12 @@ export default async function handler(req, res) {
   if (session.step === "start") {
     const cliente = await buscarCliente();
     if (cliente) {
+      global.sessions[phone] = { step: "menu" };
       await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
     } else {
+      global.sessions[phone] = { step: "menu" };
       await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
     }
-    global.sessions[phone] = { step: "menu" };
 
   } else if (session.step === "menu") {
     if (!labels[text] || text.length > 1) {
