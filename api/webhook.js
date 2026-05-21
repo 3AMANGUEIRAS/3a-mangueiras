@@ -96,29 +96,27 @@ export default async function handler(req, res) {
       }
     }
 
-  } else if (session.step === "nome") {
-    global.sessions[phone] = { ...session, step: "tel", nome: textRaw };
-    await send(phone, `Prazer, *${textRaw}*! 😊\n\nSeu *WhatsApp* com DDD:\n_(Digite tudo junto, sem traços ou pontos. Ex: 92999999999)_`);
-
-  } else if (session.step === "tel") {
-    global.sessions[phone] = { ...session, step: "origem", tel: textRaw };
-    await send(phone, origemMenu);
+ } else if (session.step === "nome") {
+    // CORRIGIDO: pula etapa de pedir telefone, vai direto pra origem
+    global.sessions[phone] = { ...session, step: "origem", nome: textRaw };
+    await send(phone, `Prazer, *${textRaw}*! 😊\n\n${origemMenu}`);
 
   } else if (session.step === "origem") {
     const origem = origemLabels[text] || textRaw;
-    const { nome, tel, cat, destino, dest } = session;
+    const { nome, cat, destino, dest } = session;
+    // CORRIGIDO: usa o número real do WhatsApp, normalizado
+    const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
     global.sessions[phone] = { step: "start" };
 
     try {
       await db.query(
         `INSERT INTO leads (nome, telefone, interesse, origem, data, hora) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [nome, tel, cat, origem, new Date().toLocaleDateString("pt-BR"), new Date().toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})]
+        [nome, telNorm, cat, origem, new Date().toLocaleDateString("pt-BR"), new Date().toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})]
       );
     } catch(e) { console.error("Erro ao salvar lead:", e.message); }
 
     await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
-    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${tel}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
-  }
+    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${telNorm}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
 
   return res.status(200).json({ ok: true });
 }
