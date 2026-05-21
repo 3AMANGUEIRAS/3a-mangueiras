@@ -10,11 +10,9 @@ export default async function handler(req, res) {
 
   const body = req.body;
   const phone = body?.data?.key?.remoteJid?.replace("@s.whatsapp.net","").replace("@c.us","");
-  const textRaw = (body?.data?.message?.conversation || body?.data?.message?.extendedTextMessage?.text || "").trim();
-  const text = textRaw.toLowerCase();
   const fromMe = body?.data?.key?.fromMe;
 
-  if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
+  if (!phone || fromMe) return res.status(200).json({ ok: true });
 
   // ignora mensagens antigas (mais de 30 segundos)
   const msgTimestamp = body?.data?.messageTimestamp;
@@ -46,6 +44,21 @@ export default async function handler(req, res) {
   const origemMenu = `Por onde você nos encontrou?\n\n1️⃣ Google\n2️⃣ Facebook\n3️⃣ Instagram\n4️⃣ Site\n5️⃣ Indicação\n\nDigite o número:`;
   const origemLabels = {"1":"Google","2":"Facebook","3":"Instagram","4":"Site","5":"Indicação"};
   const labels = {"1":"Mangueiras e fixadores","2":"Parafusos","3":"Elétrica","4":"Tintas","5":"Automotivo","6":"EPI","7":"Falar com vendedor","8":"Falar com o financeiro"};
+
+  // detecta tipo de mensagem
+  const msg = body?.data?.message;
+  const isTexto = !!(msg?.conversation || msg?.extendedTextMessage?.text);
+  const isAudio = !!(msg?.audioMessage || msg?.pttMessage);
+  const isImagem = !!(msg?.imageMessage);
+  const isVideo = !!(msg?.videoMessage);
+  const isFigurinha = !!(msg?.stickerMessage);
+  const isNaoTexto = isAudio || isImagem || isVideo || isFigurinha;
+
+  const textRaw = (msg?.conversation || msg?.extendedTextMessage?.text || "").trim();
+  const text = textRaw.toLowerCase();
+
+  // se não for texto nem mídia conhecida, ignora
+  if (!isTexto && !isNaoTexto) return res.status(200).json({ ok: true });
 
   async function getSession() {
     try {
@@ -96,6 +109,17 @@ export default async function handler(req, res) {
 
   const session = await getSession();
 
+  // trata mídia (áudio, imagem, vídeo, figurinha)
+  if (isNaoTexto) {
+    if (session.step === "aguardando_texto") {
+      await send(phone, `Desculpe, só consigo atender por *texto*. 😊\n\nPor favor, digite o número da opção desejada:\n\n${menu}`);
+    } else {
+      await setSession("aguardando_texto");
+      await send(phone, `Olá! 👋 Sou o *Mangueirinha*, assistente virtual da *3A Mangueiras e Fixadores*!\n\nSó consigo atender por *texto*. Por favor, escolha uma opção abaixo:\n\n${menu}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
   if (text === "menu") {
     const cliente = await buscarCliente();
     await send(phone, `Olá de novo${cliente ? `, *${cliente.nome}*` : ""}! Sou o *Mangueirinha* 😊\n\n${menu}`);
@@ -103,7 +127,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  if (session.step === "start") {
+  if (session.step === "start" || session.step === "aguardando_texto") {
     const cliente = await buscarCliente();
     if (cliente) {
       await setSession("menu");
