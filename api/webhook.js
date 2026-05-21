@@ -75,6 +75,15 @@ export default async function handler(req, res) {
       await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
     }
 
+  } else if (session.step === "finalizado") {
+    const cliente = await buscarCliente();
+    global.sessions[phone] = { step: "menu" };
+    if (cliente) {
+      await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
+    } else {
+      await send(phone, `Olá! Como posso te ajudar? 😊\n\n${menu}`);
+    }
+
   } else if (session.step === "menu") {
     if (!labels[text]) {
       const cliente = await buscarCliente();
@@ -91,7 +100,7 @@ export default async function handler(req, res) {
 
       const cliente = await buscarCliente();
       if (cliente) {
-        global.sessions[phone] = { step: "start" };
+        global.sessions[phone] = { step: "finalizado" };
         await send(phone, `Você escolheu: *${cat}*\n\nVou te conectar com nosso *${dest}* agora! ⏳`);
         await send(destino, `🔔 *Novo contato!*\n\n👤 Nome: ${cliente.nome}\n📱 WhatsApp: ${cliente.telefone}\n🏷️ Interesse: ${cat}`);
         await send(phone, `✅ *Pronto!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
@@ -109,7 +118,7 @@ export default async function handler(req, res) {
     const origem = origemLabels[text] || textRaw;
     const { nome, cat, destino, dest } = session;
     const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
-    global.sessions[phone] = { step: "start" };
+    global.sessions[phone] = { step: "finalizado" };
 
     try {
       await db.query(
