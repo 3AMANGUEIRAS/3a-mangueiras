@@ -35,8 +35,28 @@ export default async function handler(req, res) {
   const origemLabels = {"1":"Google","2":"Facebook","3":"Instagram","4":"Site","5":"Indicação"};
   const labels = {"1":"Mangueiras e fixadores","2":"Parafusos","3":"Elétrica","4":"Tintas","5":"Automotivo","6":"EPI","7":"Falar com vendedor","8":"Falar com o financeiro"};
 
-  global.sessions = global.sessions || {};
-  const session = global.sessions[phone] || { step: "start" };
+  async function getSession() {
+    try {
+      const r = await db.query(`SELECT * FROM sessions WHERE phone = $1`, [phone]);
+      if (r.rows[0]) return { step: r.rows[0].step, ...r.rows[0].data };
+      return { step: "start" };
+    } catch(e) {
+      console.error("Erro getSession:", e.message);
+      return { step: "start" };
+    }
+  }
+
+  async function setSession(step, data = {}) {
+    try {
+      await db.query(
+        `INSERT INTO sessions (phone, step, data, atualizado_em) VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (phone) DO UPDATE SET step = $2, data = $3, atualizado_em = NOW()`,
+        [phone, step, JSON.stringify(data)]
+      );
+    } catch(e) {
+      console.error("Erro setSession:", e.message);
+    }
+  }
 
   async function buscarCliente() {
     try {
@@ -58,26 +78,28 @@ export default async function handler(req, res) {
     }
   }
 
+  const session = await getSession();
+
   if (text === "menu") {
     const cliente = await buscarCliente();
     await send(phone, `Olá de novo${cliente ? `, *${cliente.nome}*` : ""}! Sou o *Mangueirinha* 😊\n\n${menu}`);
-    global.sessions[phone] = { step: "menu" };
+    await setSession("menu");
     return res.status(200).json({ ok: true });
   }
 
   if (session.step === "start") {
     const cliente = await buscarCliente();
     if (cliente) {
-      global.sessions[phone] = { step: "menu" };
+      await setSession("menu");
       await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
     } else {
-      global.sessions[phone] = { step: "menu" };
+      await setSession("menu");
       await send(phone, `Olá! Bem-vindo à *3A Mangueiras e Fixadores* 👋\nSou o *Mangueirinha*, assistente virtual da loja! 🤖\n\n${menu}`);
     }
 
   } else if (session.step === "finalizado") {
     const cliente = await buscarCliente();
-    global.sessions[phone] = { step: "menu" };
+    await setSession("menu");
     if (cliente) {
       await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
     } else {
@@ -100,25 +122,25 @@ export default async function handler(req, res) {
 
       const cliente = await buscarCliente();
       if (cliente) {
-        global.sessions[phone] = { step: "finalizado" };
+        await setSession("finalizado");
         await send(phone, `Você escolheu: *${cat}*\n\nVou te conectar com nosso *${dest}* agora! ⏳`);
         await send(destino, `🔔 *Novo contato!*\n\n👤 Nome: ${cliente.nome}\n📱 WhatsApp: ${cliente.telefone}\n🏷️ Interesse: ${cat}`);
         await send(phone, `✅ *Pronto!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
       } else {
-        global.sessions[phone] = { step: "nome", cat, destino, dest };
+        await setSession("nome", { cat, destino, dest });
         await send(phone, `Você escolheu: *${cat}*\n\nQual é o seu *nome completo*?`);
       }
     }
 
   } else if (session.step === "nome") {
-    global.sessions[phone] = { ...session, step: "origem", nome: textRaw };
+    await setSession("origem", { ...session, nome: textRaw });
     await send(phone, `Prazer, *${textRaw}*! 😊\n\n${origemMenu}`);
 
   } else if (session.step === "origem") {
     const origem = origemLabels[text] || textRaw;
     const { nome, cat, destino, dest } = session;
     const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
-    global.sessions[phone] = { step: "finalizado" };
+    await setSession("finalizado");
 
     try {
       await db.query(
