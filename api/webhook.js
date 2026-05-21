@@ -77,7 +77,12 @@ export default async function handler(req, res) {
 
   } else if (session.step === "menu") {
     if (!labels[text] || text.length > 1) {
-      await send(phone, `Por favor, digite apenas o *número* da opção desejada:\n\n${menu}`);
+      const cliente = await buscarCliente();
+      if (cliente) {
+        await send(phone, `Olá de novo, *${cliente.nome}*! 👋\nSou o *Mangueirinha*, assistente virtual da 3A Mangueiras!\n\n${menu}`);
+      } else {
+        await send(phone, `Por favor, digite apenas o *número* da opção desejada:\n\n${menu}`);
+      }
     } else {
       const cat = labels[text];
       const isF = text === "8";
