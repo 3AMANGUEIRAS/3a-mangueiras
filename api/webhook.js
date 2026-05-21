@@ -50,12 +50,11 @@ export default async function handler(req, res) {
   async function getSession() {
     try {
       const r = await db.query(`SELECT * FROM sessions WHERE phone = $1`, [phone]);
-      // correto:
-if (r.rows[0]) {
-  const { step } = r.rows[0];
-  const data = r.rows[0].data || {};
-  return { ...data, step };
-}
+      if (r.rows[0]) {
+        const { step } = r.rows[0];
+        const data = r.rows[0].data || {};
+        return { ...data, step };
+      }
       return { step: "start" };
     } catch(e) {
       console.error("Erro getSession:", e.message);
@@ -154,20 +153,24 @@ if (r.rows[0]) {
     await send(phone, `Prazer, *${textRaw}*! 😊\n\n${origemMenu}`);
 
   } else if (session.step === "origem") {
-    const origem = origemLabels[text] || textRaw;
-    const { nome, cat, destino, dest } = session;
-    const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
-    await setSession("finalizado");
+    if (!origemLabels[text]) {
+      await send(phone, `Por favor, digite apenas o *número* da opção desejada:\n\n${origemMenu}`);
+    } else {
+      const origem = origemLabels[text];
+      const { nome, cat, destino, dest } = session;
+      const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
+      await setSession("finalizado");
 
-    try {
-      await db.query(
-        `INSERT INTO leads (nome, telefone, interesse, origem, data, hora) VALUES ($1, $2, $3, $4, $5, $6)`,
-        [nome, telNorm, cat, origem, new Date().toLocaleDateString("pt-BR"), new Date().toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})]
-      );
-    } catch(e) { console.error("Erro ao salvar lead:", e.message); }
+      try {
+        await db.query(
+          `INSERT INTO leads (nome, telefone, interesse, origem, data, hora) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [nome, telNorm, cat, origem, new Date().toLocaleDateString("pt-BR"), new Date().toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"})]
+        );
+      } catch(e) { console.error("Erro ao salvar lead:", e.message); }
 
-    await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
-    await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${telNorm}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
+      await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
+      await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${telNorm}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
+    }
   }
 
   return res.status(200).json({ ok: true });
