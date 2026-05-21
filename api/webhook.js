@@ -52,9 +52,9 @@ export default async function handler(req, res) {
         [phoneDigits, phoneSem55, phoneCom55]
       );
       return r.rows[0] || null;
-    } catch(e) { 
+    } catch(e) {
       console.error("Erro buscarCliente:", e.message);
-      return null; 
+      return null;
     }
   }
 
@@ -96,15 +96,13 @@ export default async function handler(req, res) {
       }
     }
 
- } else if (session.step === "nome") {
-    // CORRIGIDO: pula etapa de pedir telefone, vai direto pra origem
+  } else if (session.step === "nome") {
     global.sessions[phone] = { ...session, step: "origem", nome: textRaw };
     await send(phone, `Prazer, *${textRaw}*! 😊\n\n${origemMenu}`);
 
   } else if (session.step === "origem") {
     const origem = origemLabels[text] || textRaw;
     const { nome, cat, destino, dest } = session;
-    // CORRIGIDO: usa o número real do WhatsApp, normalizado
     const telNorm = phone.replace(/\D/g, '').replace(/^55/, '');
     global.sessions[phone] = { step: "start" };
 
@@ -117,6 +115,7 @@ export default async function handler(req, res) {
 
     await send(phone, `✅ *Cadastro realizado com sucesso!*\n\nNosso *${dest}* entrará em contato em breve! 👍\n\nPara voltar ao menu a qualquer momento, digite *menu*.\n\nObrigado pelo contato com a *3A Mangueiras e Fixadores*! 🙏`);
     await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${telNorm}\n🏷️ Interesse: ${cat}\n📣 Origem: ${origem}`);
+  }
 
   return res.status(200).json({ ok: true });
 }
