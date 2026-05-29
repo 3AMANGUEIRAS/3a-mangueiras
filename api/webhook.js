@@ -1,12 +1,10 @@
 import pg from 'pg';
 
-const connectionString = "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway";
-
 let db;
 function getDb() {
   if (!db) {
     db = new pg.Pool({
-      connectionString,
+      connectionString: "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway",
       ssl: { rejectUnauthorized: false },
       max: 3
     });
@@ -22,10 +20,10 @@ const FINANCEIRO = "559286229361";
 const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
 
 async function getSession(phone) {
-  const db = getDb();
   try {
-    await db.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
-    const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
+    await getDb().query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
+    await getDb().query(`CREATE TABLE IF NOT EXISTS msg_ids (id TEXT PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW())`);
+    const r = await getDb().query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
     return r.rows[0]?.data || { step: "start" };
   } catch(e) {
     return { step: "start" };
@@ -33,11 +31,21 @@ async function getSession(phone) {
 }
 
 async function setSession(phone, data) {
-  const db = getDb();
-  await db.query(`
+  await getDb().query(`
     INSERT INTO sessions (phone, data) VALUES ($1, $2)
     ON CONFLICT (phone) DO UPDATE SET data = $2
   `, [phone, JSON.stringify(data)]);
+}
+
+async function isDuplicate(msgId) {
+  if (!msgId) return false;
+  try {
+    await getDb().query(`DELETE FROM msg_ids WHERE created_at < NOW() - INTERVAL '5 minutes'`);
+    const r = await getDb().query(`INSERT INTO msg_ids (id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id`, [msgId]);
+    return r.rowCount === 0;
+  } catch(e) {
+    return false;
+  }
 }
 
 async function send(to, msg) {
@@ -53,9 +61,8 @@ async function send(to, msg) {
 }
 
 async function buscarCliente(phone) {
-  const db = getDb();
   try {
-    const r = await db.query(
+    const r = await getDb().query(
       `SELECT * FROM leads WHERE REGEXP_REPLACE(telefone,'[^0-9]','','g') = $1 ORDER BY id DESC LIMIT 1`,
       [phone]
     );
@@ -74,6 +81,7 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
+  const msgId = body?.messageId || body?.id || null;
   const phone = (body?.phone || body?.from || "").replace(/[^0-9]/g, "");
   const textRaw = (body?.text?.message || body?.message || body?.body || "").trim();
   const text = textRaw.toLowerCase();
@@ -81,6 +89,10 @@ export default async function handler(req, res) {
 
   if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
 
+  // Ignora mensagens duplicadas
+  if (await isDuplicate(msgId)) return res.status(200).json({ ok: true });
+
+  // Ignora mensagens antigas (mais de 30 segundos)
   const msgTimestamp = body?.momment || body?.timestamp;
   if (msgTimestamp) {
     const agora = Math.floor(Date.now() / 1000);
