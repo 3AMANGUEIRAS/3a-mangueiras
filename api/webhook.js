@@ -5,14 +5,6 @@ const db = new pg.Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-await db.query(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    phone TEXT PRIMARY KEY,
-    data JSONB,
-    updated_at TIMESTAMP DEFAULT NOW()
-  )
-`);
-
 const ZAPI_INSTANCE = "3F3DA0B4353961835A5CB6659F1B412D";
 const ZAPI_TOKEN = "45FE205CE5E7886DB0CE6981";
 const ZAPI_CLIENT_TOKEN = "F75973b5f181e40af802dcac786fbdc4fS";
@@ -21,8 +13,13 @@ const FINANCEIRO = "559286229361";
 const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
 
 async function getSession(phone) {
-  const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
-  return r.rows[0]?.data || { step: "start" };
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB, updated_at TIMESTAMP DEFAULT NOW())`);
+    const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
+    return r.rows[0]?.data || { step: "start" };
+  } catch(e) {
+    return { step: "start" };
+  }
 }
 
 async function setSession(phone, data) {
@@ -45,11 +42,15 @@ async function send(to, msg) {
 }
 
 async function buscarCliente(phone) {
-  const r = await db.query(
-    `SELECT * FROM leads WHERE REGEXP_REPLACE(telefone,'[^0-9]','','g') = $1 ORDER BY id DESC LIMIT 1`,
-    [phone]
-  );
-  return r.rows[0] || null;
+  try {
+    const r = await db.query(
+      `SELECT * FROM leads WHERE REGEXP_REPLACE(telefone,'[^0-9]','','g') = $1 ORDER BY id DESC LIMIT 1`,
+      [phone]
+    );
+    return r.rows[0] || null;
+  } catch(e) {
+    return null;
+  }
 }
 
 const menu = `Olá! 👋 Sou o *Mangueirinha*, assistente virtual da *3A Mangueiras e Fixadores*! 🔧\n\nEscolha uma categoria:\n\n1️⃣ Mangueiras\n2️⃣ Fixadores\n3️⃣ Conexões\n4️⃣ Válvulas\n5️⃣ Ferramentas\n6️⃣ EPIs\n7️⃣ Outros produtos\n8️⃣ Financeiro`;
@@ -107,10 +108,17 @@ export default async function handler(req, res) {
     const { nome, cat, destino, dest } = session;
     await setSession(phone, { step: "finalizado", nome });
 
-    await db.query(
-      `INSERT INTO leads (nome, telefone, categoria, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
-      [nome, phone, cat]
-    );
+    try {
+      await db.query(
+        `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
+        [nome, phone, cat]
+      );
+    } catch(e) {
+      await db.query(
+        `INSERT INTO leads (nome, telefone, status) VALUES ($1, $2, 'Novo') ON CONFLICT DO NOTHING`,
+        [nome, phone]
+      );
+    }
 
     await send(phone, `✅ Cadastro realizado!\n\nNosso *${dest}* entrará em contato em breve! 👍`);
     await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}\n🏷️ Interesse: ${cat}`);
