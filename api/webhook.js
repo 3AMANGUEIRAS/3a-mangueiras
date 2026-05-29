@@ -11,7 +11,7 @@ async function getDb() {
     await client.connect();
     connected = true;
     await client.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
-    await client.query(`CREATE TABLE IF NOT EXISTS msg_ids (id TEXT PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW())`);
+    await client.query(`CREATE TABLE IF NOT EXISTS msg_lock (phone TEXT PRIMARY KEY, ts BIGINT)`);
   }
   return client;
 }
@@ -22,6 +22,19 @@ const ZAPI_CLIENT_TOKEN = "F75973b5f181e40af802dcac786fbdc4fS";
 const VENDEDOR = "5592992859678";
 const FINANCEIRO = "559286229361";
 const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
+
+async function isLocked(phone) {
+  try {
+    const db = await getDb();
+    const now = Date.now();
+    const r = await db.query(`SELECT ts FROM msg_lock WHERE phone = $1`, [phone]);
+    if (r.rows[0] && now - r.rows[0].ts < 3000) return true;
+    await db.query(`INSERT INTO msg_lock (phone, ts) VALUES ($1, $2) ON CONFLICT (phone) DO UPDATE SET ts = $2`, [phone, now]);
+    return false;
+  } catch(e) {
+    return false;
+  }
+}
 
 async function getSession(phone) {
   try {
@@ -39,18 +52,6 @@ async function setSession(phone, data) {
     INSERT INTO sessions (phone, data) VALUES ($1, $2)
     ON CONFLICT (phone) DO UPDATE SET data = $2
   `, [phone, JSON.stringify(data)]);
-}
-
-async function isDuplicate(msgId) {
-  if (!msgId) return false;
-  try {
-    const db = await getDb();
-    await db.query(`DELETE FROM msg_ids WHERE created_at < NOW() - INTERVAL '5 minutes'`);
-    const r = await db.query(`INSERT INTO msg_ids (id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id`, [msgId]);
-    return r.rowCount === 0;
-  } catch(e) {
-    return false;
-  }
 }
 
 async function send(to, msg) {
@@ -87,15 +88,12 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  const msgId = body?.messageId || body?.id || body?.key?.id || null;
   const phone = (body?.phone || body?.from || "").replace(/[^0-9]/g, "");
   const textRaw = (body?.text?.message || body?.message || body?.body || "").trim();
   const text = textRaw.toLowerCase();
   const fromMe = body?.fromMe || false;
 
   if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
-
-  if (await isDuplicate(msgId)) return res.status(200).json({ ok: true });
 
   const msgTimestamp = body?.momment || body?.timestamp;
   if (msgTimestamp) {
@@ -107,6 +105,9 @@ export default async function handler(req, res) {
   if (NUMEROS_INTERNOS.some(n => phone.includes(n))) {
     return res.status(200).json({ ok: true });
   }
+
+  // Bloqueia duplicatas por 3 segundos
+  if (await isLocked(phone)) return res.status(200).json({ ok: true });
 
   const session = await getSession(phone);
 
