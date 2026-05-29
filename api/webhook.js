@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
   } else if (session.step === "tel") {
     const { nome, cat, destino, dest } = session;
-    global.sessions[phone] = { step: "finalizado" };
+    global.sessions[phone] = { step: "finalizado", nome };
 
     await db.query(
       `INSERT INTO leads (nome, telefone, categoria, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
@@ -97,9 +97,9 @@ export default async function handler(req, res) {
     await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}\n🏷️ Interesse: ${cat}`);
 
   } else if (session.step === "finalizado") {
+    const { nome } = session;
     global.sessions[phone] = { step: "aguardando_opcao" };
-    const cliente = await buscarCliente();
-    await send(phone, `Olá de novo, *${cliente?.nome || ""}*! 👋\n\n${menu}`);
+    await send(phone, `Olá de novo, *${nome}*! 👋\n\n${menu}`);
   }
 
   return res.status(200).json({ ok: true });
