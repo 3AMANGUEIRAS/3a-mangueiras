@@ -96,7 +96,7 @@ export default async function handler(req, res) {
     const { nome } = session;
     if (text === "1") {
       await send(phone, `Escolha uma categoria:\n\n1️⃣ Mangueiras\n2️⃣ Fixadores\n3️⃣ Conexões\n4️⃣ Válvulas\n5️⃣ Ferramentas\n6️⃣ EPIs\n7️⃣ Outros produtos\n8️⃣ Financeiro\n9️⃣ Falar com vendedor`);
-      await setSession(phone, { step: "aguardando_opcao" });
+      await setSession(phone, { step: "aguardando_opcao", nome });
     } else if (text === "2") {
       await send(phone, `✅ Conectando com nosso *vendedor*! Ele entrará em contato em breve. 👍`);
       await send(VENDEDOR, `🔔 *Cliente quer falar com vendedor!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${phone}`);
@@ -110,11 +110,19 @@ export default async function handler(req, res) {
     }
 
   } else if (session.step === "aguardando_opcao") {
+    const { nome } = session;
     const opcoes = { "1":"Mangueiras","2":"Fixadores","3":"Conexões","4":"Válvulas","5":"Ferramentas","6":"EPIs","7":"Outros produtos","8":"Financeiro" };
     const cat = opcoes[text];
     if (text === "9") {
-      await setSession(phone, { step: "nome_vendedor" });
-      await send(phone, `Ótimo! Qual é o seu *nome completo*?`);
+      // Cliente já cadastrado — não pede nome
+      if (nome) {
+        await send(phone, `✅ Conectando com nosso *vendedor*! Ele entrará em contato em breve. 👍`);
+        await send(VENDEDOR, `🔔 *Cliente quer falar com vendedor!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${phone}`);
+        await setSession(phone, { step: "finalizado", nome });
+      } else {
+        await setSession(phone, { step: "nome_vendedor" });
+        await send(phone, `Ótimo! Qual é o seu *nome completo*?`);
+      }
     } else if (!cat) {
       await send(phone, `Por favor, escolha uma opção de 1 a 9. 😊\n\n${menu}`);
     } else {
@@ -132,7 +140,6 @@ export default async function handler(req, res) {
     await setSession(phone, { step: "finalizado", nome });
     await send(phone, `✅ Cadastro realizado!\n\nNosso *vendedor* entrará em contato em breve! 👍`);
     await send(VENDEDOR, `🔔 *Novo lead! Cliente quer falar com vendedor!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}`);
-
     try {
       await db.query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
@@ -152,7 +159,6 @@ export default async function handler(req, res) {
   } else if (session.step === "tel") {
     const { nome, cat, destino, dest } = session;
     await setSession(phone, { step: "finalizado", nome });
-
     try {
       await db.query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
@@ -164,7 +170,6 @@ export default async function handler(req, res) {
         [nome, phone]
       );
     }
-
     await send(phone, `✅ Cadastro realizado!\n\nNosso *${dest}* entrará em contato em breve! 👍`);
     await send(destino, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}\n🏷️ Interesse: ${cat}`);
 
