@@ -1,9 +1,18 @@
 import pg from 'pg';
 
-const db = new pg.Pool({
-  connectionString: "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway",
-  ssl: { rejectUnauthorized: false }
-});
+const connectionString = "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway";
+
+let db;
+function getDb() {
+  if (!db) {
+    db = new pg.Pool({
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+      max: 3
+    });
+  }
+  return db;
+}
 
 const ZAPI_INSTANCE = "3F3DA0B4353961835A5CB6659F1B412D";
 const ZAPI_TOKEN = "45FE205CE5E7886DB0CE6981";
@@ -13,6 +22,7 @@ const FINANCEIRO = "559286229361";
 const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
 
 async function getSession(phone) {
+  const db = getDb();
   try {
     await db.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
     const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
@@ -23,6 +33,7 @@ async function getSession(phone) {
 }
 
 async function setSession(phone, data) {
+  const db = getDb();
   await db.query(`
     INSERT INTO sessions (phone, data) VALUES ($1, $2)
     ON CONFLICT (phone) DO UPDATE SET data = $2
@@ -42,6 +53,7 @@ async function send(to, msg) {
 }
 
 async function buscarCliente(phone) {
+  const db = getDb();
   try {
     const r = await db.query(
       `SELECT * FROM leads WHERE REGEXP_REPLACE(telefone,'[^0-9]','','g') = $1 ORDER BY id DESC LIMIT 1`,
@@ -114,7 +126,6 @@ export default async function handler(req, res) {
     const opcoes = { "1":"Mangueiras","2":"Fixadores","3":"Conexões","4":"Válvulas","5":"Ferramentas","6":"EPIs","7":"Outros produtos","8":"Financeiro" };
     const cat = opcoes[text];
     if (text === "9") {
-      // Cliente já cadastrado — não pede nome
       if (nome) {
         await send(phone, `✅ Conectando com nosso *vendedor*! Ele entrará em contato em breve. 👍`);
         await send(VENDEDOR, `🔔 *Cliente quer falar com vendedor!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${phone}`);
@@ -139,14 +150,14 @@ export default async function handler(req, res) {
     const { nome } = session;
     await setSession(phone, { step: "finalizado", nome });
     await send(phone, `✅ Cadastro realizado!\n\nNosso *vendedor* entrará em contato em breve! 👍`);
-    await send(VENDEDOR, `🔔 *Novo lead! Cliente quer falar com vendedor!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}`);
+    await send(VENDEDOR, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}`);
     try {
-      await db.query(
+      await getDb().query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone, "Falar com vendedor"]
       );
     } catch(e) {
-      await db.query(
+      await getDb().query(
         `INSERT INTO leads (nome, telefone, status) VALUES ($1, $2, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone]
       );
@@ -160,12 +171,12 @@ export default async function handler(req, res) {
     const { nome, cat, destino, dest } = session;
     await setSession(phone, { step: "finalizado", nome });
     try {
-      await db.query(
+      await getDb().query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone, cat]
       );
     } catch(e) {
-      await db.query(
+      await getDb().query(
         `INSERT INTO leads (nome, telefone, status) VALUES ($1, $2, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone]
       );
