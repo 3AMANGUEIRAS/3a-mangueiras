@@ -1,15 +1,19 @@
 import pg from 'pg';
 
-let db;
-function getDb() {
-  if (!db) {
-    db = new pg.Pool({
-      connectionString: "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway",
-      ssl: { rejectUnauthorized: false },
-      max: 3
-    });
+const client = new pg.Client({
+  connectionString: "postgresql://postgres:eGfCkadCCSDaLOGYwuccpdFmSQENnaCc@autorack.proxy.rlwy.net:49211/railway",
+  ssl: { rejectUnauthorized: false }
+});
+
+let connected = false;
+async function getDb() {
+  if (!connected) {
+    await client.connect();
+    connected = true;
+    await client.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS msg_ids (id TEXT PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW())`);
   }
-  return db;
+  return client;
 }
 
 const ZAPI_INSTANCE = "3F3DA0B4353961835A5CB6659F1B412D";
@@ -21,9 +25,8 @@ const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
 
 async function getSession(phone) {
   try {
-    await getDb().query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
-    await getDb().query(`CREATE TABLE IF NOT EXISTS msg_ids (id TEXT PRIMARY KEY, created_at TIMESTAMP DEFAULT NOW())`);
-    const r = await getDb().query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
+    const db = await getDb();
+    const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
     return r.rows[0]?.data || { step: "start" };
   } catch(e) {
     return { step: "start" };
@@ -31,7 +34,8 @@ async function getSession(phone) {
 }
 
 async function setSession(phone, data) {
-  await getDb().query(`
+  const db = await getDb();
+  await db.query(`
     INSERT INTO sessions (phone, data) VALUES ($1, $2)
     ON CONFLICT (phone) DO UPDATE SET data = $2
   `, [phone, JSON.stringify(data)]);
@@ -40,8 +44,9 @@ async function setSession(phone, data) {
 async function isDuplicate(msgId) {
   if (!msgId) return false;
   try {
-    await getDb().query(`DELETE FROM msg_ids WHERE created_at < NOW() - INTERVAL '5 minutes'`);
-    const r = await getDb().query(`INSERT INTO msg_ids (id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id`, [msgId]);
+    const db = await getDb();
+    await db.query(`DELETE FROM msg_ids WHERE created_at < NOW() - INTERVAL '5 minutes'`);
+    const r = await db.query(`INSERT INTO msg_ids (id) VALUES ($1) ON CONFLICT DO NOTHING RETURNING id`, [msgId]);
     return r.rowCount === 0;
   } catch(e) {
     return false;
@@ -62,7 +67,8 @@ async function send(to, msg) {
 
 async function buscarCliente(phone) {
   try {
-    const r = await getDb().query(
+    const db = await getDb();
+    const r = await db.query(
       `SELECT * FROM leads WHERE REGEXP_REPLACE(telefone,'[^0-9]','','g') = $1 ORDER BY id DESC LIMIT 1`,
       [phone]
     );
@@ -80,7 +86,6 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).json({ ok: true });
 
   const body = req.body;
-  console.log("BODY:", JSON.stringify(body));
 
   const msgId = body?.messageId || body?.id || body?.key?.id || null;
   const phone = (body?.phone || body?.from || "").replace(/[^0-9]/g, "");
@@ -88,23 +93,15 @@ export default async function handler(req, res) {
   const text = textRaw.toLowerCase();
   const fromMe = body?.fromMe || false;
 
-  console.log("phone:", phone, "text:", textRaw, "fromMe:", fromMe, "msgId:", msgId);
-
   if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
 
-  if (await isDuplicate(msgId)) {
-    console.log("Duplicata ignorada:", msgId);
-    return res.status(200).json({ ok: true });
-  }
+  if (await isDuplicate(msgId)) return res.status(200).json({ ok: true });
 
   const msgTimestamp = body?.momment || body?.timestamp;
   if (msgTimestamp) {
     const agora = Math.floor(Date.now() / 1000);
     const ts = msgTimestamp > 1e12 ? Math.floor(msgTimestamp / 1000) : msgTimestamp;
-    if (agora - ts > 30) {
-      console.log("Mensagem antiga ignorada");
-      return res.status(200).json({ ok: true });
-    }
+    if (agora - ts > 30) return res.status(200).json({ ok: true });
   }
 
   if (NUMEROS_INTERNOS.some(n => phone.includes(n))) {
@@ -112,7 +109,6 @@ export default async function handler(req, res) {
   }
 
   const session = await getSession(phone);
-  console.log("Session:", JSON.stringify(session));
 
   if (session.step === "start" || session.step === "menu") {
     const cliente = await buscarCliente(phone);
@@ -172,12 +168,14 @@ export default async function handler(req, res) {
     await send(phone, `✅ Cadastro realizado!\n\nNosso *vendedor* entrará em contato em breve! 👍`);
     await send(VENDEDOR, `🔔 *Novo lead!*\n\n👤 Nome: ${nome}\n📱 WhatsApp: ${textRaw}`);
     try {
-      await getDb().query(
+      const db = await getDb();
+      await db.query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone, "Falar com vendedor"]
       );
     } catch(e) {
-      await getDb().query(
+      const db = await getDb();
+      await db.query(
         `INSERT INTO leads (nome, telefone, status) VALUES ($1, $2, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone]
       );
@@ -191,12 +189,14 @@ export default async function handler(req, res) {
     const { nome, cat, destino, dest } = session;
     await setSession(phone, { step: "finalizado", nome });
     try {
-      await getDb().query(
+      const db = await getDb();
+      await db.query(
         `INSERT INTO leads (nome, telefone, interesse, status) VALUES ($1, $2, $3, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone, cat]
       );
     } catch(e) {
-      await getDb().query(
+      const db = await getDb();
+      await db.query(
         `INSERT INTO leads (nome, telefone, status) VALUES ($1, $2, 'Novo') ON CONFLICT DO NOTHING`,
         [nome, phone]
       );
