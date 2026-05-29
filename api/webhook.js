@@ -26,6 +26,7 @@ export default async function handler(req, res) {
 
   const ZAPI_INSTANCE = "3F3DA0B4353961835A5CB6659F1B412D";
   const ZAPI_TOKEN = "45FE205CE5E7886DB0CE6981";
+  const ZAPI_CLIENT_TOKEN = "F75973b5f181e40af802dcac786fbdc4fS";
   const VENDEDOR = "5592992859678";
   const FINANCEIRO = "559286229361";
   const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
@@ -38,7 +39,10 @@ export default async function handler(req, res) {
     const toClean = to.replace(/[^0-9]/g, "");
     await fetch(`https://api.z-api.io/instances/${ZAPI_INSTANCE}/token/${ZAPI_TOKEN}/send-text`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "client-token": ZAPI_CLIENT_TOKEN
+      },
       body: JSON.stringify({ phone: toClean, message: msg })
     });
   }
