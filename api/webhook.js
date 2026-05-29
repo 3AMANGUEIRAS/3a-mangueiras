@@ -80,24 +80,31 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(200).json({ ok: true });
 
   const body = req.body;
+  console.log("BODY:", JSON.stringify(body));
 
-  const msgId = body?.messageId || body?.id || null;
+  const msgId = body?.messageId || body?.id || body?.key?.id || null;
   const phone = (body?.phone || body?.from || "").replace(/[^0-9]/g, "");
   const textRaw = (body?.text?.message || body?.message || body?.body || "").trim();
   const text = textRaw.toLowerCase();
   const fromMe = body?.fromMe || false;
 
+  console.log("phone:", phone, "text:", textRaw, "fromMe:", fromMe, "msgId:", msgId);
+
   if (!phone || !textRaw || fromMe) return res.status(200).json({ ok: true });
 
-  // Ignora mensagens duplicadas
-  if (await isDuplicate(msgId)) return res.status(200).json({ ok: true });
+  if (await isDuplicate(msgId)) {
+    console.log("Duplicata ignorada:", msgId);
+    return res.status(200).json({ ok: true });
+  }
 
-  // Ignora mensagens antigas (mais de 30 segundos)
   const msgTimestamp = body?.momment || body?.timestamp;
   if (msgTimestamp) {
     const agora = Math.floor(Date.now() / 1000);
     const ts = msgTimestamp > 1e12 ? Math.floor(msgTimestamp / 1000) : msgTimestamp;
-    if (agora - ts > 30) return res.status(200).json({ ok: true });
+    if (agora - ts > 30) {
+      console.log("Mensagem antiga ignorada");
+      return res.status(200).json({ ok: true });
+    }
   }
 
   if (NUMEROS_INTERNOS.some(n => phone.includes(n))) {
@@ -105,6 +112,7 @@ export default async function handler(req, res) {
   }
 
   const session = await getSession(phone);
+  console.log("Session:", JSON.stringify(session));
 
   if (session.step === "start" || session.step === "menu") {
     const cliente = await buscarCliente(phone);
