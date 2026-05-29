@@ -14,7 +14,7 @@ const NUMEROS_INTERNOS = [VENDEDOR, FINANCEIRO];
 
 async function getSession(phone) {
   try {
-    await db.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB, updated_at TIMESTAMP DEFAULT NOW())`);
+    await db.query(`CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, data JSONB)`);
     const r = await db.query(`SELECT data FROM sessions WHERE phone = $1`, [phone]);
     return r.rows[0]?.data || { step: "start" };
   } catch(e) {
@@ -24,8 +24,8 @@ async function getSession(phone) {
 
 async function setSession(phone, data) {
   await db.query(`
-    INSERT INTO sessions (phone, data, updated_at) VALUES ($1, $2, NOW())
-    ON CONFLICT (phone) DO UPDATE SET data = $2, updated_at = NOW()
+    INSERT INTO sessions (phone, data) VALUES ($1, $2)
+    ON CONFLICT (phone) DO UPDATE SET data = $2
   `, [phone, JSON.stringify(data)]);
 }
 
